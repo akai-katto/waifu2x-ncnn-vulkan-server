@@ -282,37 +282,48 @@ public:
         Writer::waifu2x->prepadding =  d["prepadding"].GetInt();
         Writer::waifu2x->noise = d["noise"].GetInt();
         Writer::waifu2x->scale = std::min(d["scale"].GetInt(), 2);
-        asio::write(*this->socket,asio::buffer(ack, len) );
+        asio::write(*this->socket,asio::buffer(ack, ack.size()));
         return IMG_SUCCESS;
     }
 
     // Handle Network Protocol Socket Request
     int receive_image(){
+        char *buffered_in_file = new char[THIRTY_TWO_MB];
+        std::array<char, 1> ack = {'a'};
+        std::array<char, 65536> buf;
+        asio::error_code error;
+        size_t len;
 
-        char *buffered_in_file = new char[THIRTY_TWO_MB]; // for stb_image loading
-
-        char tempmsg[METADATA_MSG_SIZE]; // for socket read
+        string tempmsg = "";
 
         // std::cout << this->port << " " << "hi! im inside the method"  <<  std::endl;;
-        // Height
-        memset(tempmsg, 0, METADATA_MSG_SIZE);
-        recv(this->incoming_socket, tempmsg, METADATA_MSG_SIZE - 1, 0);
-        send(this->incoming_socket, "a", 1, 0);
-
-
+        // Width
+        len = this->socket->read_some(asio::buffer(buf), error);
+        asio::write(*this->socket,asio::buffer(ack, ack.size()));
+        tempmsg = string(buf.data(), len);
         Writer::rawimage.width = stoi(tempmsg);
         // std::cout << this->port << " " << "hi! im the second part "  << Writer::rawimage.width <<  std::endl;;
 
-        // Width
-        memset(tempmsg, 0, METADATA_MSG_SIZE);
-        recv(this->incoming_socket, tempmsg, METADATA_MSG_SIZE - 1, 0);
-        send(this->incoming_socket, "b", 1, 0);
+        // height
+        len = this->socket->read_some(asio::buffer(buf), error);
+        asio::write(*this->socket,asio::buffer(ack, ack.size()));
+        tempmsg = string(buf.data(), len);
         Writer::rawimage.height = stoi(tempmsg);
-        // std::cout << this->port << " " << "hi! im the third part "  << Writer::rawimage.height <<  std::endl;;
 
         auto start = high_resolution_clock::now();
         memset(buffered_in_file, 0, THIRTY_TWO_MB);
-        recv(this->incoming_socket, buffered_in_file, THIRTY_TWO_MB, 0);
+
+        size_t offset = 0;
+        while (strcmp(tempmsg.c_str(), "done")){
+            len = this->socket->read_some(asio::buffer(buf), error);
+            asio::write(*this->socket,asio::buffer(ack, ack.size()));
+            tempmsg = string(buf.data(), len);
+
+            for (int i = 0; i < len; i++){
+                buffered_in_file[offset] = buf[i];
+                offset+=1;
+            }
+        }
 
         int channels = 3;
         Writer::rawimage.data = nullptr;
@@ -330,7 +341,7 @@ public:
 
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
-        // std::cout << this->port << " " << "receive duration: " <<  duration.count() << std::endl;;
+        std::cout << "receive duration: " <<  duration.count() << std::endl;;
 
         //stbi_write_png("onebigbuffer.png", Writer::rawimage.width, Writer::rawimage.height, 3, Writer::rawimage.data, 0);
 
@@ -356,7 +367,7 @@ int main(int argc, char **argv)
         int status = comm1.receive_hyperparameters();
         if (status == IMG_EXIT){ return 0; }
 
-//        status = comm1.receive_image();
+        status = comm1.receive_image();
 //        if (status == IMG_ERR){ return 1; }
 
 //        ImageUpscalerSender::upscale_image();
