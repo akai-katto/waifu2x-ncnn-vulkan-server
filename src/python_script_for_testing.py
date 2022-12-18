@@ -36,6 +36,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         print(s.recv(1))
 
     s.send(b"done")
+    s.recv(1)
 
 time.sleep(10)
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
