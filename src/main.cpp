@@ -86,139 +86,92 @@ string Writer::current_param_path = "";
 string Writer::current_model_path = "";
 int Writer::scale = 2;
 
-//class ImageUpscalerSender{
-//
-//public:
-//
-//    // only call this once
-//    static void setup(const char* port){
-//
-//        ImageUpscalerSender::port = port;
-//        // Set up network protocol
-//        WSADATA wsaData;
-//        struct addrinfo hints;
-//        struct addrinfo *server = NULL;
-//
-//        //Initialize Winsock
-//        // std::// std::cout << port << " " << "Intializing Winsock..." << std::std::endl;;
-//        WSAStartup(MAKEWORD(2, 2), &wsaData);
-//
-//        //Setup hints
-//        ZeroMemory(&hints, sizeof(hints));
-//        hints.ai_family = AF_INET;
-//        hints.ai_socktype = SOCK_STREAM;
-//        hints.ai_protocol = IPPROTO_TCP;
-//        hints.ai_flags = AI_PASSIVE;
-//
-//        //Setup Server
-//        // std::// std::cout << port << " " << "Setting up server..." << std::std::endl;;
-//        getaddrinfo(static_cast<LPCTSTR>(IP_ADDRESS), port, &hints, &server);
-//
-//        //Create a listening socket for connecting to server
-//        // std::// std::cout << port << " " << "Creating server socket..." << std::std::endl;;
-//        server_socket = socket(server->ai_family, server->ai_socktype, server->ai_protocol);
-//
-//        //Setup socket options
-//        setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &OPTION_VALUE,
-//                   sizeof(int)); //Make it possible to re-bind to a port that was used within the last 2 minutes
-//        setsockopt(server_socket, IPPROTO_TCP, TCP_NODELAY, &OPTION_VALUE, sizeof(int)); //Used for interactive programs
-//        //Assign an address to the server socket.
-//        // std::// std::cout << port << " " << "Binding socket..." << std::std::endl;;
-//        int result = bind(server_socket, server->ai_addr, (int) server->ai_addrlen);
-//        // std::cout << port << " " << "bind result: " << result << std::endl;;
-//
-//        //Listen for incoming connections.
-//        // std::// std::cout << port << " " << "Listening..." << std::std::endl;;
-//        listen(server_socket, SOMAXCONN);
-//
-//        Writer::waifu2x = new Waifu2x(0, 0, 0);
-//    }
-//
-//    ImageUpscalerSender(){
-//        // std::cout << this->port << " " << "Waiting for incoming_socket acceptance for sender" << std::endl;;
-//        this->incoming_socket = accept(server_socket, NULL, NULL);
-//        if (this->incoming_socket == INVALID_SOCKET) {
-//            // std::cout << this->port << " " << "INVALID BIND ERROR" << std::endl;;
-//            // todo
-//            //return -1;
-//        }
-//        // std::cout << this->port << " " << "accepted!" << std::endl;;
-//    }
-//
-//    ~ImageUpscalerSender(){
-//        stbi_image_free(Writer::Writer::rawimage.data);
-//        closesocket(this->incoming_socket);
-//    }
-//
-//    void send_upscaled_image(){
-//
-//        char tempmsg[1];
-//        // std::cout << this->port << " " << "sending upscaled image" << std::endl;;
-//        // Reset Writer
-//        Writer::offset = 0;
-//        memset(Writer::byte_array, 0, 500000000);
-//
-//        auto start = high_resolution_clock::now();
-//        stbi_write_bmp_to_func(Writer::dummy_write, nullptr, Writer::outimage.w, Writer::outimage.h, 3, Writer::outimage.data);
-//
-//        string length = std::to_string(Writer::offset);
-//        padTo(length,20); // Pad Message for Python to be able to correctly interpret length
-//
-//        recv(this->incoming_socket, tempmsg, 1, 0);
-//        send(this->incoming_socket, length.c_str(), 20, 0);
-//        recv(this->incoming_socket, tempmsg, 1, 0);
-//        send(this->incoming_socket, Writer::byte_array, 500000000, 0);
-//        auto stop = high_resolution_clock::now();
-//        auto duration = duration_cast<microseconds>(stop - start);
-//        // std::cout << this->port << " " << "send duration " << duration.count() << std::endl;;
-//    }
-//
-//    static void upscale_image(){
-//        int n = 3;
-//        int scale_run_count = 0;
-//
-//        if (Writer::scale == 2)
-//        {
-//            scale_run_count = 1;
-//        }
-//        if (Writer::scale == 4)
-//        {
-//            scale_run_count = 2;
-//        }
-//        if (Writer::scale == 8)
-//        {
-//            scale_run_count = 3;
-//        }
-//        if (Writer::scale == 16)
-//        {
-//            scale_run_count = 4;
-//        }
-//        if (Writer::scale == 32)
-//        {
-//            scale_run_count = 5;
-//        }
-//
-//        ncnn::Mat inimage = ncnn::Mat(Writer::rawimage.width, Writer::rawimage.height, (void *) Writer::rawimage.data, (size_t) n, n);
-//        Writer::outimage = ncnn::Mat(Writer::rawimage.width * min(Writer::scale, 2), Writer::rawimage.height * min(Writer::scale,2), (size_t) n, (int) n);
-//        Writer::waifu2x->process(inimage, Writer::outimage);
-//
-//        for (int i = 1; i < scale_run_count; i++)
-//        {
-//            // Magic number 2, since if we're in here, we're at least some multiple of 2 scaling.
-//            ncnn::Mat tmp = Writer::outimage;
-//            Writer::outimage = ncnn::Mat(tmp.w * 2, tmp.h * 2, (size_t) n, (int) n);
-//            Writer::waifu2x->process(tmp, Writer::outimage);
-//        }
-//    }
-//private:
-//    inline static const char* port;
-//    SOCKET incoming_socket = INVALID_SOCKET;
-//    inline static SOCKET server_socket = INVALID_SOCKET;
-//
-//    inline static string current_param_path = "";
-//    inline static string current_model_path = "";
-//};
-//
+class ImageUpscalerSender{
+
+public:
+
+    ImageUpscalerSender(int port){
+        tcp::acceptor acceptor(this->io_context, tcp::endpoint(tcp::v4(), port));
+
+        // Wait for a connection
+        this->socket = new tcp::socket(this->io_context);
+        acceptor.accept(*socket);
+    }
+
+    ~ImageUpscalerSender(){
+        stbi_image_free(Writer::Writer::rawimage.data);
+
+        asio::error_code error;
+        this->socket->close(error);
+        if (error){
+            cout << "error: " << error;
+        }
+        free(this->socket);
+    }
+
+    void send_upscaled_image(){
+        std::array<char, 4> doneack = {'d', 'o', 'n', 'e'};
+        std::array<char, 65536> sendbuf;
+        // std::cout << this->port << " " << "sending upscaled image" << std::endl;;
+        // Reset Writer
+        Writer::offset = 0;
+        stbi_write_bmp_to_func(Writer::dummy_write, nullptr, Writer::outimage.w, Writer::outimage.h, 3, Writer::outimage.data);
+
+        for(int i = 0; i < Writer::offset; i += 65536){
+            for (int j = 0; j < 65536; j++){
+                sendbuf[j] = Writer::byte_array[i + j];
+            }
+            asio::write(*this->socket,asio::buffer(sendbuf, sendbuf.size()));
+        }
+        asio::write(*this->socket,asio::buffer(doneack, doneack.size()));
+    }
+
+    static void upscale_image(){
+        int n = 3;
+        int scale_run_count = 0;
+
+        if (Writer::scale == 2)
+        {
+            scale_run_count = 1;
+        }
+        if (Writer::scale == 4)
+        {
+            scale_run_count = 2;
+        }
+        if (Writer::scale == 8)
+        {
+            scale_run_count = 3;
+        }
+        if (Writer::scale == 16)
+        {
+            scale_run_count = 4;
+        }
+        if (Writer::scale == 32)
+        {
+            scale_run_count = 5;
+        }
+
+        ncnn::Mat inimage = ncnn::Mat(Writer::rawimage.width, Writer::rawimage.height, (void *) Writer::rawimage.data, (size_t) n, n);
+        Writer::outimage = ncnn::Mat(Writer::rawimage.width * min(Writer::scale, 2), Writer::rawimage.height * min(Writer::scale,2), (size_t) n, (int) n);
+        Writer::waifu2x->process(inimage, Writer::outimage);
+
+        for (int i = 1; i < scale_run_count; i++)
+        {
+            // Magic number 2, since if we're in here, we're at least some multiple of 2 scaling.
+            ncnn::Mat tmp = Writer::outimage;
+            Writer::outimage = ncnn::Mat(tmp.w * 2, tmp.h * 2, (size_t) n, (int) n);
+            Writer::waifu2x->process(tmp, Writer::outimage);
+        }
+        cout << "done upscaling" << endl;
+    }
+private:
+    asio::io_context io_context;
+    tcp::socket* socket;
+
+    inline static string current_param_path = "";
+    inline static string current_model_path = "";
+};
+
 
 
 class ImageUpscalerReceiver{
@@ -343,7 +296,7 @@ public:
         auto duration = duration_cast<microseconds>(stop - start);
         std::cout << "receive duration: " <<  duration.count() << std::endl;;
 
-        //stbi_write_png("onebigbuffer.png", Writer::rawimage.width, Writer::rawimage.height, 3, Writer::rawimage.data, 0);
+        stbi_write_png("onebigbuffer.png", Writer::rawimage.width, Writer::rawimage.height, 3, Writer::rawimage.data, 0);
 
         // std::cout << this->port << " " << "exiting loop" << std::endl;;
         Writer::rawimage.success_code = 0;
@@ -351,7 +304,6 @@ public:
         return IMG_SUCCESS;
     }
 private:
-    inline static const char* port;
     asio::io_context io_context;
     tcp::socket* socket;
 };
@@ -368,11 +320,11 @@ int main(int argc, char **argv)
         if (status == IMG_EXIT){ return 0; }
 
         status = comm1.receive_image();
-//        if (status == IMG_ERR){ return 1; }
+        if (status == IMG_ERR){ return 1; }
 
-//        ImageUpscalerSender::upscale_image();
-//        ImageUpscalerSender comm2 = ImageUpscalerSender();
-//        comm2.send_upscaled_image();
+        ImageUpscalerSender::upscale_image();
+        ImageUpscalerSender comm2 = ImageUpscalerSender(3510);
+        comm2.send_upscaled_image();
     }
 
     return 0;
