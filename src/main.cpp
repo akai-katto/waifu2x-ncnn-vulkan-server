@@ -165,7 +165,7 @@ public:
         cout << "done upscaling" << endl;
     }
 private:
-    asio::io_context io_context;
+    static inline asio::io_context io_context;
     tcp::socket* socket;
 
     inline static string current_param_path = "";
@@ -304,7 +304,7 @@ public:
         return IMG_SUCCESS;
     }
 private:
-    asio::io_context io_context;
+    static inline asio::io_context io_context;
     tcp::socket* socket;
 };
 
