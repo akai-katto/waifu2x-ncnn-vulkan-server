@@ -315,7 +315,7 @@ int main(int argc, char **argv)
 
     while(true) {
         cout << "next loop" << endl;
-        ImageUpscalerReceiver comm1 = ImageUpscalerReceiver(3509);
+        ImageUpscalerReceiver comm1 = ImageUpscalerReceiver(atoi(argv[1]));
         int status = comm1.receive_hyperparameters();
         if (status == IMG_EXIT){ return 0; }
 
@@ -323,7 +323,7 @@ int main(int argc, char **argv)
         if (status == IMG_ERR){ return 1; }
 
         ImageUpscalerSender::upscale_image();
-        ImageUpscalerSender comm2 = ImageUpscalerSender(3510);
+        ImageUpscalerSender comm2 = ImageUpscalerSender(atoi(argv[2]);
         comm2.send_upscaled_image();
     }
 
