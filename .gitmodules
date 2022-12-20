@@ -4,6 +4,3 @@
 [submodule "src/libwebp"]
 	path = src/libwebp
 	url = https://github.com/webmproject/libwebp.git
-[submodule "src/asio"]
-	path = src/asio
-	url = https://github.com/chriskohlhoff/asio
