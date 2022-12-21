@@ -111,19 +111,23 @@ public:
 
     void send_upscaled_image(){
         std::array<char, 4> doneack = {'d', 'o', 'n', 'e'};
-        std::array<char, 65536> sendbuf;
+        std::array<char, 32768> sendbuf;
+        std::array<char, 1> readbuf;
+        asio::error_code error;
         // std::cout << this->port << " " << "sending upscaled image" << std::endl;;
         // Reset Writer
         Writer::offset = 0;
         stbi_write_bmp_to_func(Writer::dummy_write, nullptr, Writer::outimage.w, Writer::outimage.h, 3, Writer::outimage.data);
 
-        for(int i = 0; i < Writer::offset; i += 65536){
-            for (int j = 0; j < 65536; j++){
+        for(int i = 0; i < Writer::offset; i += 32768){
+            for (int j = 0; j < 32768; j++){
                 sendbuf[j] = Writer::byte_array[i + j];
             }
             asio::write(*this->socket,asio::buffer(sendbuf, sendbuf.size()));
+            socket->read_some(asio::buffer(readbuf), error);
         }
         asio::write(*this->socket,asio::buffer(doneack, doneack.size()));
+        socket->read_some(asio::buffer(readbuf), error);
     }
 
     static void upscale_image(){
@@ -270,11 +274,11 @@ public:
 
         size_t offset = 0;
         while (strcmp(tempmsg.c_str(), "done")){
-            cout << "first part of loop" << endl;
-            len = this->socket->read_some(asio::buffer(buf), error);
+            // cout << "first part of loop" << endl;
             asio::write(*this->socket,asio::buffer(ack, ack.size()));
+            len = this->socket->read_some(asio::buffer(buf), error);
             tempmsg = string(buf.data(), len);
-            cout << "in loop" << endl;
+            // cout << "in loop" << endl;
             for (int i = 0; i < len; i++){
                 buffered_in_file[offset] = buf[i];
                 offset+=1;
