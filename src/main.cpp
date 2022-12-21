@@ -205,7 +205,7 @@ public:
         len = socket->read_some(asio::buffer(buf), error);
         string tempmsg = string(buf.data(), len);
         cout << tempmsg << endl;
-        if (!strcmp(tempmsg.c_str(), "exit")){
+        if (!strcmp(tempmsg.substr(0,4).c_str(), "exit")){
             std::cout << "exiting by request" << std::endl;;
             return IMG_EXIT;
         }
@@ -271,8 +271,8 @@ public:
         size_t offset = 0;
         while (strcmp(tempmsg.c_str(), "done")){
             cout << "first part of loop" << endl;
-            asio::write(*this->socket,asio::buffer(ack, ack.size()));
             len = this->socket->read_some(asio::buffer(buf), error);
+            asio::write(*this->socket,asio::buffer(ack, ack.size()));
             tempmsg = string(buf.data(), len);
             cout << "in loop" << endl;
             for (int i = 0; i < len; i++){
@@ -308,7 +308,7 @@ public:
     }
 private:
     static inline asio::io_context io_context;
-    tcp::socket* socket;
+    static inline tcp::socket* socket;
 };
 
 
