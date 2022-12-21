@@ -6,7 +6,7 @@ project(waifu2x-ncnn-vulkan)
 
 cmake_minimum_required(VERSION 3.9)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_BUILD_TYPE Debug)
 
 option(USE_SYSTEM_NCNN "build with system libncnn" OFF)
@@ -219,7 +219,7 @@ endif()
 
 add_dependencies(waifu2x-ncnn-vulkan generate-spirv)
 
-set(WAIFU2X_LINK_LIBRARIES ncnn webp ${Vulkan_LIBRARY})
+set(WAIFU2X_LINK_LIBRARIES ncnn ${Vulkan_LIBRARY})
 
 if(USE_STATIC_MOLTENVK)
     find_library(CoreFoundation NAMES CoreFoundation)
