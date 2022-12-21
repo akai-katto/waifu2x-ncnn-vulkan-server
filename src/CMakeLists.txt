@@ -7,7 +7,7 @@ project(waifu2x-ncnn-vulkan)
 cmake_minimum_required(VERSION 3.9)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Debug)
 
 option(USE_SYSTEM_NCNN "build with system libncnn" OFF)
 option(USE_SYSTEM_WEBP "build with system libwebp" OFF)
@@ -269,4 +269,4 @@ if(USE_STATIC_MOLTENVK)
 endif()
 
 target_link_libraries(waifu2x-ncnn-vulkan ${WAIFU2X_LINK_LIBRARIES})
-target_include_directories(waifu2x-ncnn-vulkan PRIVATE "asio/asio/include")
+target_include_directories(waifu2x-ncnn-vulkan PRIVATE "asio/include")
