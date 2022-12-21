@@ -166,7 +166,7 @@ public:
             Writer::outimage = ncnn::Mat(tmp.w * 2, tmp.h * 2, (size_t) n, (int) n);
             Writer::waifu2x->process(tmp, Writer::outimage);
         }
-        cout << "done upscaling" << endl;
+        //cout << "done upscaling" << endl;
     }
 private:
     static inline asio::io_context io_context;
@@ -208,7 +208,7 @@ public:
 
         len = socket->read_some(asio::buffer(buf), error);
         string tempmsg = string(buf.data(), len);
-        cout << tempmsg << endl;
+        //cout << tempmsg << endl;
         if (!strcmp(tempmsg.substr(0,4).c_str(), "exit")){
             std::cout << "exiting by request" << std::endl;;
             return IMG_EXIT;
@@ -233,7 +233,7 @@ public:
             Writer::current_param_path = param_path;
             Writer::current_model_path = model_path;
         }
-        cout << "done loaded" << endl;
+        //cout << "done loaded" << endl;
 
         Writer::scale = d["scale"].GetInt();
         Writer::waifu2x->tilesize = d["tilesize"].GetInt();
@@ -260,14 +260,14 @@ public:
         asio::write(*this->socket,asio::buffer(ack, ack.size()));
         tempmsg = string(buf.data(), len);
         Writer::rawimage.width = stoi(tempmsg);
-        std::cout << " " << "hi! im the second part "  << Writer::rawimage.width <<  std::endl;;
+        //std::cout << " " << "hi! im the second part "  << Writer::rawimage.width <<  std::endl;;
 
         // height
         len = this->socket->read_some(asio::buffer(buf), error);
         asio::write(*this->socket,asio::buffer(ack, ack.size()));
         tempmsg = string(buf.data(), len);
         Writer::rawimage.height = stoi(tempmsg);
-        std::cout << " " << "hi! im the second part "  << Writer::rawimage.height <<  std::endl;;
+        //std::cout << " " << "hi! im the second part "  << Writer::rawimage.height <<  std::endl;;
 
         auto start = high_resolution_clock::now();
         memset(buffered_in_file, 0, THIRTY_TWO_MB);
@@ -301,7 +301,7 @@ public:
 
         auto stop = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>(stop - start);
-        std::cout << "receive duration: " <<  duration.count() << std::endl;;
+        //std::cout << "receive duration: " <<  duration.count() << std::endl;;
 
         //stbi_write_png("onebigbuffer.png", Writer::rawimage.width, Writer::rawimage.height, 3, Writer::rawimage.data, 0);
 
@@ -321,7 +321,7 @@ int main(int argc, char **argv)
 {
 
     while(true) {
-        cout << "next loop" << endl;
+        //cout << "next loop" << endl;
         ImageUpscalerReceiver comm1 = ImageUpscalerReceiver(atoi(argv[1]));
         int status = comm1.receive_hyperparameters();
         if (status == IMG_EXIT){ return 0; }
