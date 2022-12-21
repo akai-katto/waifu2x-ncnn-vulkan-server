@@ -323,7 +323,7 @@ int main(int argc, char **argv)
         if (status == IMG_ERR){ return 1; }
 
         ImageUpscalerSender::upscale_image();
-        ImageUpscalerSender comm2 = ImageUpscalerSender(atoi(argv[2]);
+        ImageUpscalerSender comm2 = ImageUpscalerSender(atoi(argv[2]));
         comm2.send_upscaled_image();
     }
 
