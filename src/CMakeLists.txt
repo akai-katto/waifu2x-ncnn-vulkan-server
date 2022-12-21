@@ -269,3 +269,4 @@ if(USE_STATIC_MOLTENVK)
 endif()
 
 target_link_libraries(waifu2x-ncnn-vulkan ${WAIFU2X_LINK_LIBRARIES})
+target_include_directories(waifu2x-ncnn-vulkan PRIVATE "asio/include")
