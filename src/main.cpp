@@ -110,7 +110,7 @@ public:
     }
 
     void send_upscaled_image(){
-        std::array<char, 4> doneack = {'d', 'o', 'n', 'e'};
+        std::array<char, 4> doneack = {'d', 'o', 'n', 'e'}; // Done ack is used to signal that it is done
         std::array<char, 32768> sendbuf;
         std::array<char, 1> readbuf;
         asio::error_code error;
@@ -119,7 +119,9 @@ public:
         Writer::offset = 0;
         stbi_write_bmp_to_func(Writer::dummy_write, nullptr, Writer::outimage.w, Writer::outimage.h, 3, Writer::outimage.data);
 
+        int counter = 0;
         for(int i = 0; i < Writer::offset; i += 32768){
+            counter += 1;
             for (int j = 0; j < 32768; j++){
                 sendbuf[j] = Writer::byte_array[i + j];
             }
@@ -128,6 +130,8 @@ public:
         }
         asio::write(*this->socket,asio::buffer(doneack, doneack.size()));
         socket->read_some(asio::buffer(readbuf), error);
+
+        cout << counter << endl;
     }
 
     static void upscale_image(){
