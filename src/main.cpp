@@ -91,10 +91,11 @@ class ImageUpscalerSender{
 public:
 
     ImageUpscalerSender(int port){
-        tcp::acceptor acceptor(this->io_context, tcp::endpoint(tcp::v4(), port));
+        this->io_context = new asio::io_context;
+        tcp::acceptor acceptor(*this->io_context, tcp::endpoint(tcp::v4(), port));
 
         // Wait for a connection
-        this->socket = new tcp::socket(this->io_context);
+        this->socket = new tcp::socket(*this->io_context);
         acceptor.accept(*socket);
     }
 
@@ -107,6 +108,7 @@ public:
             cout << "error: " << error;
         }
         free(this->socket);
+        free(this->io_context);
     }
 
     void send_upscaled_image(){
@@ -169,7 +171,7 @@ public:
         //cout << "done upscaling" << endl;
     }
 private:
-    static inline asio::io_context io_context;
+    asio::io_context* io_context;
     tcp::socket* socket;
 
     inline static string current_param_path = "";
@@ -183,10 +185,11 @@ class ImageUpscalerReceiver{
 public:
 
     ImageUpscalerReceiver(int port){
-        tcp::acceptor acceptor(this->io_context, tcp::endpoint(tcp::v4(), port));
+        this->io_context = new asio::io_context;
+        tcp::acceptor acceptor(*this->io_context, tcp::endpoint(tcp::v4(), port));
 
         // Wait for a connection
-        this->socket = new tcp::socket(this->io_context);
+        this->socket = new tcp::socket(*this->io_context);
         acceptor.accept(*socket);
         this->port = port;
     }
@@ -199,11 +202,12 @@ public:
             cout << "error: " << error;
         }
         free(this->socket);
+        free(this->io_context);
     }
 
     int receive_hyperparameters(){
         std::array<char, 1> ack = {'a'};
-        std::array<char, 65536> buf;
+        std::array<char, 4096> buf;
         asio::error_code error;
         size_t len;
 
@@ -312,8 +316,8 @@ public:
         return IMG_SUCCESS;
     }
 private:
-    static inline asio::io_context io_context;
-    static inline tcp::socket* socket;
+    asio::io_context* io_context;
+    tcp::socket* socket;
     int port;
 };
 
@@ -323,14 +327,17 @@ int main(int argc, char **argv)
 {
 
     while(true) {
-        //cout << "next loop" << endl;
         ImageUpscalerReceiver comm1 = ImageUpscalerReceiver(atoi(argv[1]));
+        cout << argv[1] << " receiving hyper parameters." << endl;
         int status = comm1.receive_hyperparameters();
-        if (status == IMG_EXIT){ return 0; }
-
+        if (status == IMG_EXIT){
+            return 0;
+        }
+        cout << argv[1] << " receiving images." << endl;
         status = comm1.receive_image();
         if (status == IMG_ERR){ return 1; }
 
+        cout << argv[1] << " upscaling." << endl;
         ImageUpscalerSender::upscale_image();
         ImageUpscalerSender comm2 = ImageUpscalerSender(atoi(argv[2]));
         comm2.send_upscaled_image();
