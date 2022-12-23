@@ -111,7 +111,7 @@ public:
 
     void send_upscaled_image(){
         std::array<char, 4> doneack = {'d', 'o', 'n', 'e'};
-        std::array<char, 32768> sendbuf;
+        std::array<char, 4096> sendbuf;
         std::array<char, 1> readbuf;
         asio::error_code error;
         // std::cout << this->port << " " << "sending upscaled image" << std::endl;;
@@ -119,8 +119,8 @@ public:
         Writer::offset = 0;
         stbi_write_bmp_to_func(Writer::dummy_write, nullptr, Writer::outimage.w, Writer::outimage.h, 3, Writer::outimage.data);
 
-        for(int i = 0; i < Writer::offset; i += 32768){
-            for (int j = 0; j < 32768; j++){
+        for(int i = 0; i < Writer::offset; i += 4096){
+            for (int j = 0; j < 4096; j++){
                 sendbuf[j] = Writer::byte_array[i + j];
             }
             asio::write(*this->socket,asio::buffer(sendbuf, sendbuf.size()));
@@ -248,7 +248,7 @@ public:
     int receive_image(){
         char *buffered_in_file = new char[THIRTY_TWO_MB];
         std::array<char, 1> ack = {'a'};
-        std::array<char, 65536> buf;
+        std::array<char, 4096> buf;
         asio::error_code error;
         size_t len;
 
