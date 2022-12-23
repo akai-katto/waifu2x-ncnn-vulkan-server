@@ -113,7 +113,7 @@ public:
 
     void send_upscaled_image(){
         std::array<char, 4> doneack = {'d', 'o', 'n', 'e'};
-        std::array<char, 4096> sendbuf;
+        std::array<char, 8192> sendbuf;
         std::array<char, 1> readbuf;
         asio::error_code error;
         // std::cout << this->port << " " << "sending upscaled image" << std::endl;;
@@ -121,8 +121,8 @@ public:
         Writer::offset = 0;
         stbi_write_bmp_to_func(Writer::dummy_write, nullptr, Writer::outimage.w, Writer::outimage.h, 3, Writer::outimage.data);
 
-        for(int i = 0; i < Writer::offset; i += 4096){
-            for (int j = 0; j < 4096; j++){
+        for(int i = 0; i < Writer::offset; i += 8192){
+            for (int j = 0; j < 8192; j++){
                 sendbuf[j] = Writer::byte_array[i + j];
             }
             asio::write(*this->socket,asio::buffer(sendbuf, sendbuf.size()));
@@ -207,7 +207,7 @@ public:
 
     int receive_hyperparameters(){
         std::array<char, 1> ack = {'a'};
-        std::array<char, 4096> buf;
+        std::array<char, 8192> buf;
         asio::error_code error;
         size_t len;
 
@@ -253,7 +253,7 @@ public:
     int receive_image(){
         char *buffered_in_file = new char[THIRTY_TWO_MB];
         std::array<char, 1> ack = {'a'};
-        std::array<char, 4096> buf;
+        std::array<char, 8192> buf;
         asio::error_code error;
         size_t len;
 
@@ -271,6 +271,7 @@ public:
         len = this->socket->read_some(asio::buffer(buf), error);
         asio::write(*this->socket,asio::buffer(ack, ack.size()));
         tempmsg = string(buf.data(), len);
+        Writer::rawimage.height = stoi(tempmsg);
         Writer::rawimage.height = stoi(tempmsg);
         //std::cout << " " << "hi! im the second part "  << Writer::rawimage.height <<  std::endl;;
 
@@ -328,16 +329,16 @@ int main(int argc, char **argv)
 
     while(true) {
         ImageUpscalerReceiver comm1 = ImageUpscalerReceiver(atoi(argv[1]));
-        cout << argv[1] << " receiving hyper parameters." << endl;
+        //cout << argv[1] << " receiving hyper parameters." << endl;
         int status = comm1.receive_hyperparameters();
         if (status == IMG_EXIT){
             return 0;
         }
-        cout << argv[1] << " receiving images." << endl;
+        //cout << argv[1] << " receiving images." << endl;
         status = comm1.receive_image();
         if (status == IMG_ERR){ return 1; }
 
-        cout << argv[1] << " upscaling." << endl;
+        //cout << argv[1] << " upscaling." << endl;
         ImageUpscalerSender::upscale_image();
         ImageUpscalerSender comm2 = ImageUpscalerSender(atoi(argv[2]));
         comm2.send_upscaled_image();
