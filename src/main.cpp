@@ -188,6 +188,7 @@ public:
         // Wait for a connection
         this->socket = new tcp::socket(this->io_context);
         acceptor.accept(*socket);
+        this->port = port;
     }
 
     ~ImageUpscalerReceiver(){
@@ -210,7 +211,7 @@ public:
         string tempmsg = string(buf.data(), len);
         //cout << tempmsg << endl;
         if (!strcmp(tempmsg.substr(0,4).c_str(), "exit")){
-            std::cout << "exiting by request" << std::endl;;
+            std::cout << this->port << " exiting by request" << std::endl;;
             return IMG_EXIT;
         }
 
@@ -313,6 +314,7 @@ public:
 private:
     static inline asio::io_context io_context;
     static inline tcp::socket* socket;
+    int port;
 };
 
 
