@@ -34,12 +34,8 @@ using asio::ip::tcp;
 #include <thread>
 #include <vector>
 
-#define IP_ADDRESS "localhost"
-#define DEFAULT_PORT "3504"
-#define DEFAULT_BUFLEN 2000000
-#define TWO_MB 1000000
 #define THIRTY_TWO_MB 32000000
-#define METADATA_MSG_SIZE 1000
+#define MESSAGE_SIZE 8192
 
 #define IMG_SUCCESS 0
 #define IMG_ERR 1
@@ -90,7 +86,7 @@ class ImageUpscalerSender{
 
 public:
 
-    ImageUpscalerSender(int port){
+    ImageUpscalerSender(const int port){
         this->io_context = new asio::io_context;
         tcp::acceptor acceptor(*this->io_context, tcp::endpoint(tcp::v4(), port));
 
@@ -105,7 +101,7 @@ public:
         asio::error_code error;
         this->socket->close(error);
         if (error){
-            cout << "error: " << error;
+            cerr << "error: " << error;
         }
         free(this->socket);
         free(this->io_context);
@@ -113,21 +109,25 @@ public:
 
     void send_upscaled_image(){
         std::array<char, 4> doneack = {'d', 'o', 'n', 'e'};
-        std::array<char, 8192> sendbuf;
+        std::array<char, MESSAGE_SIZE> sendbuf;
         std::array<char, 1> readbuf;
         asio::error_code error;
-        // std::cout << this->port << " " << "sending upscaled image" << std::endl;;
+
         // Reset Writer
         Writer::offset = 0;
+        // Write the image to the buffer
         stbi_write_bmp_to_func(Writer::dummy_write, nullptr, Writer::outimage.w, Writer::outimage.h, 3, Writer::outimage.data);
 
-        for(int i = 0; i < Writer::offset; i += 8192){
-            for (int j = 0; j < 8192; j++){
+        // send the upscaled image that is stored in the buffer
+        for(int i = 0; i < Writer::offset; i += MESSAGE_SIZE){
+            for (int j = 0; j < MESSAGE_SIZE; j++){
                 sendbuf[j] = Writer::byte_array[i + j];
             }
             asio::write(*this->socket,asio::buffer(sendbuf, sendbuf.size()));
             socket->read_some(asio::buffer(readbuf), error);
         }
+
+        // send a "done" message over
         asio::write(*this->socket,asio::buffer(doneack, doneack.size()));
         socket->read_some(asio::buffer(readbuf), error);
     }
@@ -181,10 +181,13 @@ private:
 
 
 class ImageUpscalerReceiver{
+    /*
+     * Receives both the image and waifu2x settings.
+     */
 
 public:
 
-    ImageUpscalerReceiver(int port){
+    ImageUpscalerReceiver(const int port){
         this->io_context = new asio::io_context;
         tcp::acceptor acceptor(*this->io_context, tcp::endpoint(tcp::v4(), port));
 
@@ -205,30 +208,33 @@ public:
         free(this->io_context);
     }
 
-    int receive_hyperparameters(){
+    int receive_waifu2x_hyperparameters(){
+        /*
+         * Receives waifu2x hyperparamters in the form of a json string representing metadata for the
+         * current upscale request.
+         */
         std::array<char, 1> ack = {'a'};
-        std::array<char, 8192> buf;
+        std::array<char, MESSAGE_SIZE> buf;
         asio::error_code error;
         size_t len;
 
         len = socket->read_some(asio::buffer(buf), error);
         string tempmsg = string(buf.data(), len);
-        //cout << tempmsg << endl;
+
         if (!strcmp(tempmsg.substr(0,4).c_str(), "exit")){
-            std::cout << this->port << " exiting by request" << std::endl;;
+            std::cerr << this->port << " exiting by request" << std::endl;;
             return IMG_EXIT;
         }
 
+        // Load the json
         Document d;
         d.Parse(tempmsg.c_str());
-
-        // std::cout << "noise is " << d["noise"].GetInt() << std::endl;;
 
         string param_path =d["param_path"].GetString();
         string model_path =d["model_path"].GetString();
 
+        // Load the model, either on first run, or if the param / model changes
         if (Writer::current_param_path != param_path && Writer::current_model_path != model_path){
-            //waifu2x->~Waifu2x();
             free(Writer::waifu2x);
 
             int tta_mode = 0;
@@ -238,8 +244,8 @@ public:
             Writer::current_param_path = param_path;
             Writer::current_model_path = model_path;
         }
-        //cout << "done loaded" << endl;
 
+        // Load waifu2x with needed hyperparemters.
         Writer::scale = d["scale"].GetInt();
         Writer::waifu2x->tilesize = d["tilesize"].GetInt();
         Writer::waifu2x->prepadding =  d["prepadding"].GetInt();
@@ -253,38 +259,35 @@ public:
     int receive_image(){
         char *buffered_in_file = new char[THIRTY_TWO_MB];
         std::array<char, 1> ack = {'a'};
-        std::array<char, 8192> buf;
+        std::array<char, MESSAGE_SIZE> buf;
         asio::error_code error;
         size_t len;
 
         string tempmsg = "";
 
-        // std::cout << this->port << " " << "hi! im inside the method"  <<  std::endl;;
         // Width
         len = this->socket->read_some(asio::buffer(buf), error);
         asio::write(*this->socket,asio::buffer(ack, ack.size()));
         tempmsg = string(buf.data(), len);
         Writer::rawimage.width = stoi(tempmsg);
-        //std::cout << " " << "hi! im the second part "  << Writer::rawimage.width <<  std::endl;;
 
-        // height
+        // Height
         len = this->socket->read_some(asio::buffer(buf), error);
         asio::write(*this->socket,asio::buffer(ack, ack.size()));
         tempmsg = string(buf.data(), len);
         Writer::rawimage.height = stoi(tempmsg);
         Writer::rawimage.height = stoi(tempmsg);
-        //std::cout << " " << "hi! im the second part "  << Writer::rawimage.height <<  std::endl;;
 
         auto start = high_resolution_clock::now();
         memset(buffered_in_file, 0, THIRTY_TWO_MB);
 
+        // Buffer in bytes until "done" message is received
         size_t offset = 0;
-        while (strcmp(tempmsg.c_str(), "done")){
-            // cout << "first part of loop" << endl;
+        while (strcmp(tempmsg.substr(0,4).c_str(), "done")){
             asio::write(*this->socket,asio::buffer(ack, ack.size()));
             len = this->socket->read_some(asio::buffer(buf), error);
             tempmsg = string(buf.data(), len);
-            // cout << "in loop" << endl;
+
             for (int i = 0; i < len; i++){
                 buffered_in_file[offset] = buf[i];
                 offset+=1;
@@ -298,20 +301,16 @@ public:
                                                       &Writer::rawimage.width,
                                                       &Writer::rawimage.height, &channels, 3);
 
+        // if the image failed to load, return an error code.
         if (Writer::rawimage.data == nullptr) {
-            // std::// std::cout << this->port << " " << "warning it failed exiting" << std::std::endl;;
             Writer::rawimage.success_code = -1;
             free(buffered_in_file);
             return IMG_ERR;
         }
 
-        auto stop = high_resolution_clock::now();
-        auto duration = duration_cast<microseconds>(stop - start);
-        //std::cout << "receive duration: " <<  duration.count() << std::endl;;
-
+        // I leave this in for debugging
         //stbi_write_png("onebigbuffer.png", Writer::rawimage.width, Writer::rawimage.height, 3, Writer::rawimage.data, 0);
 
-        // std::cout << this->port << " " << "exiting loop" << std::endl;;
         Writer::rawimage.success_code = 0;
         free(buffered_in_file);
         return IMG_SUCCESS;
@@ -326,19 +325,17 @@ private:
 
 int main(int argc, char **argv)
 {
-
     while(true) {
         ImageUpscalerReceiver comm1 = ImageUpscalerReceiver(atoi(argv[1]));
-        //cout << argv[1] << " receiving hyper parameters." << endl;
-        int status = comm1.receive_hyperparameters();
+        int status = comm1.receive_waifu2x_hyperparameters();
         if (status == IMG_EXIT){
             return 0;
         }
-        //cout << argv[1] << " receiving images." << endl;
         status = comm1.receive_image();
-        if (status == IMG_ERR){ return 1; }
+        if (status == IMG_ERR){
+            return IMG_ERR;
+        }
 
-        //cout << argv[1] << " upscaling." << endl;
         ImageUpscalerSender::upscale_image();
         ImageUpscalerSender comm2 = ImageUpscalerSender(atoi(argv[2]));
         comm2.send_upscaled_image();
